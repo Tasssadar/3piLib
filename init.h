@@ -15,6 +15,10 @@ void init()
 //    init_sensors(); TODO
 #endif
 
+#ifdef PI_LIB_DISPLAY
+    init_display();
+#endif
+
 #ifdef PI_LIB_RS232
     init_rs232();
 #endif
@@ -36,6 +40,10 @@ void clean()
 
 #ifdef PI_LIB_SENSORS
 //    clean_sensors(); TODO
+#endif
+
+#ifdef PI_LIB_DISPLAY
+    clean_display();
 #endif
 
 #ifdef PI_LIB_RS232

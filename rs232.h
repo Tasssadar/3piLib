@@ -24,6 +24,8 @@ inline void force_wd_reset()
 {
     //TODO: THIS SHOULD NOT BE HERE, BUT BOOTLOADER WONT STOP PWM ON 3PI
     clean_motors();
+    //display has to be cleared, too
+    display.clear();
 
     cli();
 #if defined(WDTCR)
