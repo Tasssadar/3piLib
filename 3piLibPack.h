@@ -1,4 +1,4 @@
--e #define PI_LIB_VERSION 2
+#define PI_LIB_VERSION 2
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
