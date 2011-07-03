@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 3
+#define PI_LIB_VERSION 4
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -367,6 +367,115 @@ public:
         send_cmd(0x0C);    // display on, cursor off, blinking off
     }
 
+    void showCursor(uint8_t cursorType)
+    {
+        if (cursorType == CURSOR_BLINKING)
+            send_cmd(LCD_SHOW_BLINK);
+        else
+            send_cmd(LCD_SHOW_SOLID);
+    }
+    
+    // shifts the cursor LEFT or RIGHT the given number of positions.
+    // direction should be either LCD_LEFT or LCD_RIGHT
+    void moveCursor(uint8_t direction, uint8_t num)
+    {
+        while(num-- > 0)
+        {
+            if (direction == LCD_LEFT)
+                send_cmd(LCD_CURSOR_L);
+            else
+                send_cmd(LCD_CURSOR_R);
+        }
+    }
+    
+    // shifts the display LEFT or RIGHT the given number of
+    // positions, delaying for delay_time milliseconds between each shift.
+    // This is what you'd use for a scrolling display.
+    // direction should be either LCD_LEFT or LCD_RIGHT
+    void scroll(uint8_t direction, uint8_t num, uint16_t delay_time)
+    {
+        while(num--)
+        {
+            if (direction == LCD_LEFT)
+                send_cmd(LCD_SHIFT_L);
+            else
+                send_cmd(LCD_SHIFT_R);
+            delay(delay_time);
+        }
+    }
+    
+    // moves the cursor to the specified (x, y) position
+    // x is a zero-based column indicator (0 <= x <= 7)
+    // y is a zero-based row indicator (0 <= y <= LCD rows-1)
+    void gotoXY(uint8_t x, uint8_t y)
+    {
+        // Memory locations for the start of each line
+        // The actual memory locations are 0x00, and 0x40, but since
+        // D7 needs to be high in order to set a new memory location, we can go
+        // ahead and make the seventh bit of our memory location bytes to 1,
+        // which makes the numbers 0x80 and 0xC0:
+
+        unsigned char line_mem[] = {0x80, 0xC0, 0x94, 0xD4};
+
+        // Grab the location in the LCD's memory of the start of line y,
+        // and add X to it to get the right character location.
+        send_cmd(line_mem[y] + x);
+    }
+    
+    inline void print(const char *str)
+    {
+        while (*str != 0)
+            send_data(*str++);
+    }
+    
+    template <typename T>
+    void printNumber(T n, uint8_t width = 0)
+    {
+        char buf[32];
+        uint8_t len = 0;
+
+        if (n != 0)
+        {
+            T a = (n < 0)? -n: n;
+
+            while (a > 0)
+            {
+                T b = a / 10;
+                buf[len++] = '0' + (a - b * 10);
+                a = b;
+            }
+
+            if (n < 0)
+                buf[len++] = '-';
+        }
+        else
+            buf[len++] = '0';
+
+        for (; width > len; --width)
+            send_data(' ');
+        
+        for (; len > 0; --len)
+            send_data(buf[len-1]);
+    }
+    
+    inline void clear() { send_cmd(LCD_CLEAR); }
+    inline void send_cmd(uint8_t cmd) { send(cmd, 0, 2); }
+    inline void send_4bit_cmd(uint8_t cmd) { send(cmd, 0, 1); }
+    inline void send_data(uint8_t data) { send(data, 1, 2); }
+    inline void hideCursor() { send_cmd(LCD_HIDE);}
+    inline void printToXY(const char *str, uint8_t x, uint8_t y)
+    {
+        gotoXY(x, y);
+        print(str);
+    }
+    template <typename T>
+    inline void printNumToXY(T num, uint8_t x, uint8_t y)
+    {
+        gotoXY(x, y);
+        printNumber(num);
+    }
+
+private:
     // Wait for the busy flag to clear.  The 4-bit interface is
     // more complicated than the 8-bit interface because E must
     // be strobed twice to get the full eight bits back from
@@ -502,115 +611,7 @@ public:
         PORTD = temp_portd;
         DDRB = temp_ddrb;
         PORTB = temp_portb;
-    }
-    
-    void showCursor(uint8_t cursorType)
-    {
-        if (cursorType == CURSOR_BLINKING)
-            send_cmd(LCD_SHOW_BLINK);
-        else
-            send_cmd(LCD_SHOW_SOLID);
-    }
-    
-    // shifts the cursor LEFT or RIGHT the given number of positions.
-    // direction should be either LCD_LEFT or LCD_RIGHT
-    void moveCursor(uint8_t direction, uint8_t num)
-    {
-        while(num-- > 0)
-        {
-            if (direction == LCD_LEFT)
-                send_cmd(LCD_CURSOR_L);
-            else
-                send_cmd(LCD_CURSOR_R);
-        }
-    }
-    
-    // shifts the display LEFT or RIGHT the given number of
-    // positions, delaying for delay_time milliseconds between each shift.
-    // This is what you'd use for a scrolling display.
-    // direction should be either LCD_LEFT or LCD_RIGHT
-    void scroll(uint8_t direction, uint8_t num, uint16_t delay_time)
-    {
-        while(num--)
-        {
-            if (direction == LCD_LEFT)
-                send_cmd(LCD_SHIFT_L);
-            else
-                send_cmd(LCD_SHIFT_R);
-            delay(delay_time);
-        }
-    }
-    
-    // moves the cursor to the specified (x, y) position
-    // x is a zero-based column indicator (0 <= x <= 7)
-    // y is a zero-based row indicator (0 <= y <= LCD rows-1)
-    void gotoXY(uint8_t x, uint8_t y)
-    {
-        // Memory locations for the start of each line
-        // The actual memory locations are 0x00, and 0x40, but since
-        // D7 needs to be high in order to set a new memory location, we can go
-        // ahead and make the seventh bit of our memory location bytes to 1,
-        // which makes the numbers 0x80 and 0xC0:
-
-        unsigned char line_mem[] = {0x80, 0xC0, 0x94, 0xD4};
-
-        // Grab the location in the LCD's memory of the start of line y,
-        // and add X to it to get the right character location.
-        send_cmd(line_mem[y] + x);
-    }
-    
-    inline void print(const char *str)
-    {
-        while (*str != 0)
-            send_data(*str++);
-    }
-    
-    template <typename T>
-    void printNumber(T n, uint8_t width = 0)
-    {
-        char buf[32];
-        uint8_t len = 0;
-
-        if (n != 0)
-        {
-            T a = (n < 0)? -n: n;
-
-            while (a > 0)
-            {
-                T b = a / 10;
-                buf[len++] = '0' + (a - b * 10);
-                a = b;
-            }
-
-            if (n < 0)
-                buf[len++] = '-';
-        }
-        else
-            buf[len++] = '0';
-
-        for (; width > len; --width)
-            send_data(' ');
-        
-        for (; len > 0; --len)
-            send_data(buf[len-1]);
-    }
-    
-    inline void clear() { send_cmd(LCD_CLEAR); }
-    inline void send_cmd(uint8_t cmd) { send(cmd, 0, 2); }
-    inline void send_4bit_cmd(uint8_t cmd) { send(cmd, 0, 1); }
-    inline void send_data(uint8_t data) { send(data, 1, 2); }
-    inline void hideCursor() { send_cmd(LCD_HIDE);}
-    inline void printToXY(const char *str, uint8_t x, uint8_t y)
-    {
-        gotoXY(x, y);
-        print(str);
-    }
-    template <typename T>
-    inline void printNumToXY(T num, uint8_t x, uint8_t y)
-    {
-        gotoXY(x, y);
-        printNumber(num);
-    }
+    } 
 }; // class Display
 } // namespace detail
 
@@ -645,9 +646,6 @@ void clean_display()
 #ifndef JUNIOR_RS232_BPS
 # error Nastavte symbol JUNIOR_RS232_BPS na rychlost, s jakou chcete komunikovat (napr. 115200).
 #endif
-
-
-void setMotorPower(int16_t left, int16_t right);
 
 inline void force_wd_reset()
 {

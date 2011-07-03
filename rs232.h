@@ -17,9 +17,6 @@
 # error Nastavte symbol JUNIOR_RS232_BPS na rychlost, s jakou chcete komunikovat (napr. 115200).
 #endif
 
-
-void setMotorPower(int16_t left, int16_t right);
-
 inline void force_wd_reset()
 {
     //TODO: THIS SHOULD NOT BE HERE, BUT BOOTLOADER WONT STOP PWM ON 3PI
