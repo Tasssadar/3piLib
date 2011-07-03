@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 2
+#define PI_LIB_VERSION 3
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -600,6 +600,17 @@ public:
     inline void send_4bit_cmd(uint8_t cmd) { send(cmd, 0, 1); }
     inline void send_data(uint8_t data) { send(data, 1, 2); }
     inline void hideCursor() { send_cmd(LCD_HIDE);}
+    inline void printToXY(const char *str, uint8_t x, uint8_t y)
+    {
+        gotoXY(x, y);
+        print(str);
+    }
+    template <typename T>
+    inline void printNumToXY(T num, uint8_t x, uint8_t y)
+    {
+        gotoXY(x, y);
+        printNumber(num);
+    }
 }; // class Display
 } // namespace detail
 
