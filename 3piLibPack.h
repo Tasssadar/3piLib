@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 5
+#define PI_LIB_VERSION 6
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -100,11 +100,11 @@ namespace detail
 
     void setLeftMotor(int16_t speed)
     {
-        unsigned char reverse = 0;
+        bool reverse = false;
         if (speed < 0)
         {
             speed = -speed; // make speed a positive quantity
-            reverse = 1;    // preserve the direction
+            reverse = true;    // preserve the direction
         }
         if (speed > 0xFF)   // 0xFF = 255
             speed = 0xFF;
@@ -123,11 +123,11 @@ namespace detail
 
     void setRightMotor(int16_t speed)
     {
-        unsigned char reverse = 0;
+        bool reverse = false;
         if (speed < 0)
         {
             speed = -speed; // make speed a positive quantity
-            reverse = 1;    // preserve the direction
+            reverse = true;    // preserve the direction
         }
         if (speed > 0xFF)   // 0xFF = 255
             speed = 0xFF;
@@ -144,6 +144,7 @@ namespace detail
         }
     }
 }
+
 void setRightMotor(int16_t speed)
 {
     if(detail::g_soft_speed_set)
@@ -191,7 +192,7 @@ inline void setSoftAccel(bool enabled)
 #define PI_LIB_TIME
 
 // Delays for for the specified nubmer of microseconds.
-inline void delayMicroseconds(unsigned int microseconds)
+inline void delayMicroseconds(uint16_t microseconds)
 {
     __asm__ volatile (
         "1: push r22"     "\n\t"
@@ -205,9 +206,10 @@ inline void delayMicroseconds(unsigned int microseconds)
         : "0" ( microseconds )
     );  
 }
+
 inline void delay(uint16_t ms)
 {
-  while (ms--)
+    while (ms--)
       delayMicroseconds(1000);
 }
 
@@ -219,6 +221,13 @@ uint32_t getTicksCount()
     uint32_t time = g_timer;
     sei();
     return time;
+}
+
+void resetTicks()
+{
+    cli();
+    g_timer = 0;
+    sei();
 }
 
 void init_timer()
@@ -239,9 +248,9 @@ void clean_timer()
 }
 
 ISR(TIMER1_COMPA_vect)
-{
-   cli();
-   g_timer++;
+{  
+   ++g_timer;
+   
    for(uint8_t i = 0; i < 2; ++i)
    {
        if(!detail::g_need_set_speed[i])
@@ -262,7 +271,6 @@ ISR(TIMER1_COMPA_vect)
        detail::g_speed_cur[i] += val;
        setMotorPowerID(i, detail::g_speed_cur[i]);
    }
-   sei();
 }
 
 #endif

@@ -2,7 +2,7 @@
 #define PI_LIB_TIME
 
 // Delays for for the specified nubmer of microseconds.
-inline void delayMicroseconds(unsigned int microseconds)
+inline void delayMicroseconds(uint16_t microseconds)
 {
     __asm__ volatile (
         "1: push r22"     "\n\t"
@@ -16,9 +16,10 @@ inline void delayMicroseconds(unsigned int microseconds)
         : "0" ( microseconds )
     );  
 }
+
 inline void delay(uint16_t ms)
 {
-  while (ms--)
+    while (ms--)
       delayMicroseconds(1000);
 }
 
@@ -30,6 +31,13 @@ uint32_t getTicksCount()
     uint32_t time = g_timer;
     sei();
     return time;
+}
+
+void resetTicks()
+{
+    cli();
+    g_timer = 0;
+    sei();
 }
 
 void init_timer()
@@ -50,9 +58,9 @@ void clean_timer()
 }
 
 ISR(TIMER1_COMPA_vect)
-{
-   cli();
-   g_timer++;
+{  
+   ++g_timer;
+   
    for(uint8_t i = 0; i < 2; ++i)
    {
        if(!detail::g_need_set_speed[i])
@@ -73,7 +81,6 @@ ISR(TIMER1_COMPA_vect)
        detail::g_speed_cur[i] += val;
        setMotorPowerID(i, detail::g_speed_cur[i]);
    }
-   sei();
 }
 
 #endif

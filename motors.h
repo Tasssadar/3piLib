@@ -48,11 +48,11 @@ namespace detail
 
     void setLeftMotor(int16_t speed)
     {
-        unsigned char reverse = 0;
+        bool reverse = false;
         if (speed < 0)
         {
             speed = -speed; // make speed a positive quantity
-            reverse = 1;    // preserve the direction
+            reverse = true;    // preserve the direction
         }
         if (speed > 0xFF)   // 0xFF = 255
             speed = 0xFF;
@@ -71,11 +71,11 @@ namespace detail
 
     void setRightMotor(int16_t speed)
     {
-        unsigned char reverse = 0;
+        bool reverse = false;
         if (speed < 0)
         {
             speed = -speed; // make speed a positive quantity
-            reverse = 1;    // preserve the direction
+            reverse = true;    // preserve the direction
         }
         if (speed > 0xFF)   // 0xFF = 255
             speed = 0xFF;
@@ -92,6 +92,7 @@ namespace detail
         }
     }
 }
+
 void setRightMotor(int16_t speed)
 {
     if(detail::g_soft_speed_set)
