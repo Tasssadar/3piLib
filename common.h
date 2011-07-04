@@ -41,4 +41,9 @@ inline void nop()
 #define JUNIOR_CONCAT2(x, y) x ## y
 #define JUNIOR_CONCAT(x, y) JUNIOR_CONCAT2(x, y)
 
+template <typename T>
+inline T abs(T num)
+{
+    return (num < 0 ? -num : num);
+}
 #endif

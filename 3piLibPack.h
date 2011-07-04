@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 4
+#define PI_LIB_VERSION 5
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -43,38 +43,17 @@ inline void nop()
 #define JUNIOR_CONCAT2(x, y) x ## y
 #define JUNIOR_CONCAT(x, y) JUNIOR_CONCAT2(x, y)
 
-#endif
-
-#ifndef PI_LIB_TIME
-#define PI_LIB_TIME
-
-// Delays for for the specified nubmer of microseconds.
-inline void delayMicroseconds(unsigned int microseconds)
+template <typename T>
+inline T abs(T num)
 {
-    __asm__ volatile (
-        "1: push r22"     "\n\t"
-        "   ldi  r22, 4"  "\n\t"
-        "2: dec  r22"     "\n\t"
-        "   brne 2b"      "\n\t"
-        "   pop  r22"     "\n\t"   
-        "   sbiw %0, 1"   "\n\t"
-        "   brne 1b"
-        : "=w" ( microseconds )  
-        : "0" ( microseconds )
-    );  
+    return (num < 0 ? -num : num);
 }
-inline void delay(uint16_t ms)
-{
-  while (ms--)
-      delayMicroseconds(1000);
-}
-
-// TODO
-
 #endif
 
 #ifndef PI_LIB_MOTORS
 #define PI_LIB_MOTORS
+
+#define MOTORS_ACCELERATION 1
 
 void init_motors()
 {
@@ -102,7 +81,6 @@ void init_motors()
     PORTD &= ~(1 << PIN6);
     PORTD &= ~(1 << PIN3);
     PORTB &= ~(1 << PIN3);
-
 }
 
 void clean_motors()
@@ -113,56 +91,178 @@ void clean_motors()
     TCCR2B = 0;
 }
 
-void setLeftMotor(int16_t speed)
-{
-    unsigned char reverse = 0;
-    if (speed < 0)
-    {
-        speed = -speed; // make speed a positive quantity
-        reverse = 1;    // preserve the direction
-    }
-    if (speed > 0xFF)   // 0xFF = 255
-        speed = 0xFF;
+namespace detail
+{  
+    volatile int16_t g_speed[2] = {0, 0};
+    volatile int16_t g_speed_cur[2] = {0, 0};
+    volatile bool g_need_set_speed[2] = {false, false};
+    volatile bool g_soft_speed_set = true;
 
-    if (reverse)
+    void setLeftMotor(int16_t speed)
     {
-        OCR0B = 0;      // hold one driver input high
-        OCR0A = speed;  // pwm the other input
+        unsigned char reverse = 0;
+        if (speed < 0)
+        {
+            speed = -speed; // make speed a positive quantity
+            reverse = 1;    // preserve the direction
+        }
+        if (speed > 0xFF)   // 0xFF = 255
+            speed = 0xFF;
+
+        if (reverse)
+        {
+            OCR0B = 0;      // hold one driver input high
+            OCR0A = speed;  // pwm the other input
+        }
+        else    // forward
+        {
+            OCR0B = speed;  // pwm one driver input
+            OCR0A = 0;      // hold the other driver input high
+        }
     }
-    else    // forward
+
+    void setRightMotor(int16_t speed)
     {
-        OCR0B = speed;  // pwm one driver input
-        OCR0A = 0;      // hold the other driver input high
+        unsigned char reverse = 0;
+        if (speed < 0)
+        {
+            speed = -speed; // make speed a positive quantity
+            reverse = 1;    // preserve the direction
+        }
+        if (speed > 0xFF)   // 0xFF = 255
+            speed = 0xFF;
+
+        if (reverse)
+        {
+            OCR2B = 0;      // hold one driver input high
+            OCR2A = speed;  // pwm the other input
+        }
+        else    // forward
+        {
+            OCR2B = speed;  // pwm one driver input
+            OCR2A = 0;      // hold the other driver input high
+        }
     }
 }
-
 void setRightMotor(int16_t speed)
 {
-    unsigned char reverse = 0;
-    if (speed < 0)
+    if(detail::g_soft_speed_set)
     {
-        speed = -speed; // make speed a positive quantity
-        reverse = 1;    // preserve the direction
+        detail::g_speed[1] = speed;
+        detail::g_need_set_speed[1] = true;
     }
-    if (speed > 0xFF)   // 0xFF = 255
-        speed = 0xFF;
-
-    if (reverse)
-    {
-        OCR2B = 0;      // hold one driver input high
-        OCR2A = speed;  // pwm the other input
-    }
-    else    // forward
-    {
-        OCR2B = speed;  // pwm one driver input
-        OCR2A = 0;      // hold the other driver input high
-    }
+    else
+        detail::setRightMotor(speed);
 }
 
-void setMotorPower(int16_t left, int16_t right)
+void setLeftMotor(int16_t speed)
+{
+    if(detail::g_soft_speed_set)
+    {
+        detail::g_speed[0] = speed;
+        detail::g_need_set_speed[0] = true;
+    }
+    else
+        detail::setLeftMotor(speed);
+}
+
+void setMotorPowerID(uint8_t motor, int16_t speed)
+{
+    if(motor)
+        detail::setRightMotor(speed);
+    else
+        detail::setLeftMotor(speed);
+}
+
+inline void setMotorPower(int16_t left, int16_t right)
 {
     setLeftMotor(left);
     setRightMotor(right);
+}
+
+inline void setSoftAccel(bool enabled)
+{
+    detail::g_soft_speed_set = enabled;
+}
+
+#endif
+
+#ifndef PI_LIB_TIME
+#define PI_LIB_TIME
+
+// Delays for for the specified nubmer of microseconds.
+inline void delayMicroseconds(unsigned int microseconds)
+{
+    __asm__ volatile (
+        "1: push r22"     "\n\t"
+        "   ldi  r22, 4"  "\n\t"
+        "2: dec  r22"     "\n\t"
+        "   brne 2b"      "\n\t"
+        "   pop  r22"     "\n\t"   
+        "   sbiw %0, 1"   "\n\t"
+        "   brne 1b"
+        : "=w" ( microseconds )  
+        : "0" ( microseconds )
+    );  
+}
+inline void delay(uint16_t ms)
+{
+  while (ms--)
+      delayMicroseconds(1000);
+}
+
+uint32_t g_timer = 0;
+
+uint32_t getTicksCount()
+{
+    cli();
+    uint32_t time = g_timer;
+    sei();
+    return time;
+}
+
+void init_timer()
+{ 
+    // Setup timer to 1 ms
+    TCCR1B = (1 << WGM12) | (1 << CS11);
+    
+    OCR1AH = (2500 >> 8);
+    OCR1AL = (2500 & 0xFF);
+    
+    TIMSK1 |=(1<<OCIE1A);
+}
+
+void clean_timer()
+{
+    TCCR1A = 0;
+    TCCR1B = 0;
+}
+
+ISR(TIMER1_COMPA_vect)
+{
+   cli();
+   g_timer++;
+   for(uint8_t i = 0; i < 2; ++i)
+   {
+       if(!detail::g_need_set_speed[i])
+           continue;
+       
+       if(detail::g_speed[i] == detail::g_speed_cur[i])
+       {
+           detail::g_need_set_speed[i] = false;
+           continue;
+       }
+       
+       int16_t val = abs(detail::g_speed[i]-detail::g_speed_cur[i]);
+       if(val >= MOTORS_ACCELERATION)
+           val = MOTORS_ACCELERATION;
+       
+       if(detail::g_speed[i] < detail::g_speed_cur[i])
+           val *= -1;
+       detail::g_speed_cur[i] += val;
+       setMotorPowerID(i, detail::g_speed_cur[i]);
+   }
+   sei();
 }
 
 #endif
@@ -941,7 +1041,7 @@ ISR(USART_UDRE_vect)
 void init()
 {
 #ifdef PI_LIB_TIME
-//    init_timer(); TODO
+    init_timer();
 #endif
 
 #ifdef PI_LIB_MOTORS
@@ -968,7 +1068,7 @@ void init()
 void clean()
 {
 #ifdef PI_LIB_TIME
-//    clean_timer(); TODO
+    clean_timer();
 #endif
 
 #ifdef PI_LIB_MOTORS

@@ -4,7 +4,7 @@
 void init()
 {
 #ifdef PI_LIB_TIME
-//    init_timer(); TODO
+    init_timer();
 #endif
 
 #ifdef PI_LIB_MOTORS
@@ -31,7 +31,7 @@ void init()
 void clean()
 {
 #ifdef PI_LIB_TIME
-//    clean_timer(); TODO
+    clean_timer();
 #endif
 
 #ifdef PI_LIB_MOTORS
