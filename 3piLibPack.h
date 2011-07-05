@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 7
+#define PI_LIB_VERSION 8
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -278,6 +278,10 @@ ISR(TIMER1_COMPA_vect)
 #ifndef PI_LIB_SENSORS
 #define PI_LIB_SENSORS
 
+// LOW_BATTERY = (((low_voltage_in_mv*2-1)/3)*1023-511)/5000;
+// Current setting is 5000mV
+//#define LOW_BATTERY 681
+
 struct ground_sensors_t
 {
     uint16_t value[6];
@@ -285,7 +289,6 @@ struct ground_sensors_t
 
 volatile struct ground_sensors_t g_sensors;
 uint16_t g_threshold = 512;
-
 ISR(ADC_vect)
 {
     static uint8_t currentSensor = 0;
@@ -1130,6 +1133,65 @@ ISR(USART_UDRE_vect)
 
 #endif
 
+#ifndef PI_LIB_BUTTONS
+#define PI_LIB_BUTTONS
+
+#define BUTTON_C        (1 << PORTB5)
+#define BUTTON_B        (1 << PORTB4)
+#define BUTTON_A        (1 << PORTB1)
+#define ALL_BUTTONS     (BUTTON_A | BUTTON_B | BUTTON_C)
+
+void init_buttons()
+{
+    DDRB &= ~ALL_BUTTONS;
+    PORTB |= ALL_BUTTONS;
+}
+
+void clean_buttons()
+{
+    PORTB &= ~ALL_BUTTONS;
+}
+
+inline bool isPressed(uint8_t buttons)
+{
+    return !(PINB & buttons);
+}
+
+inline uint8_t waitForPress(uint8_t buttons)
+{
+    while(PINB & buttons)
+        JUNIOR_DO_IDLE();
+    return ((~PINB) & buttons);       // return the pressed button(s)
+}
+
+inline uint8_t waitForRelease(uint8_t buttons)
+{
+    while(!(PINB & buttons))
+        JUNIOR_DO_IDLE();
+    return (PINB & buttons);          // return the pressed button(s)
+}
+
+inline void waitForButton(uint8_t buttons)
+{
+    do
+    {
+        while(!isPressed(buttons))
+            JUNIOR_DO_IDLE();
+        delay(5);
+    } while(!isPressed(buttons));
+    
+    delay(50);
+    
+    do
+    {
+        while(isPressed(buttons))
+            JUNIOR_DO_IDLE();
+        delay(5);
+    } while(isPressed(buttons));
+}
+
+#endif
+
 #ifndef PI_LIB_INIT
 #define PI_LIB_INIT
 
@@ -1158,6 +1220,10 @@ void init()
 #ifdef PI_LIB_I2C
 //    init_i2c(); TODO
 #endif
+
+#ifdef PI_LIB_BUTTONS
+    init_buttons();
+#endif   
 }
 
 void clean()
@@ -1185,6 +1251,10 @@ void clean()
 #ifdef PI_LIB_I2C
 //    clean_i2c(); TODO
 #endif
+
+#ifdef PI_LIB_BUTTONS
+    clean_buttons();
+#endif   
 }
 
 void run();

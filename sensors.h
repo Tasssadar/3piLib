@@ -1,6 +1,10 @@
 #ifndef PI_LIB_SENSORS
 #define PI_LIB_SENSORS
 
+// LOW_BATTERY = (((low_voltage_in_mv*2-1)/3)*1023-511)/5000;
+// Current setting is 5000mV
+//#define LOW_BATTERY 681
+
 struct ground_sensors_t
 {
     uint16_t value[6];
@@ -8,7 +12,6 @@ struct ground_sensors_t
 
 volatile struct ground_sensors_t g_sensors;
 uint16_t g_threshold = 512;
-
 ISR(ADC_vect)
 {
     static uint8_t currentSensor = 0;

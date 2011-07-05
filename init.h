@@ -26,6 +26,10 @@ void init()
 #ifdef PI_LIB_I2C
 //    init_i2c(); TODO
 #endif
+
+#ifdef PI_LIB_BUTTONS
+    init_buttons();
+#endif   
 }
 
 void clean()
@@ -53,6 +57,10 @@ void clean()
 #ifdef PI_LIB_I2C
 //    clean_i2c(); TODO
 #endif
+
+#ifdef PI_LIB_BUTTONS
+    clean_buttons();
+#endif   
 }
 
 void run();
