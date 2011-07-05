@@ -161,6 +161,7 @@
 #define LCD_RIGHT       1
 #define CURSOR_SOLID    0
 #define CURSOR_BLINKING 1
+#define LCD_CGRAM       6
 
 namespace detail
 {
@@ -282,6 +283,22 @@ public:
         
         for (; len > 0; --len)
             send_data(buf[len-1]);
+    }
+    
+    void loadCustomCharacter(const char *picture_p, uint8_t number)
+    {
+        // Each character takes up 8 bytes of the character memory, so we
+        // multiply by 8 to get the address.
+        number *= 8;
+
+        for(uint8_t i = 0; i < 8; ++i)
+        {
+            // set CG RAM address
+            send_cmd((1<<LCD_CGRAM) | (number+i));
+
+            // write character data
+            send_data(picture_p[i]);
+        }
     }
     
     inline void clear() { send_cmd(LCD_CLEAR); }
