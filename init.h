@@ -12,7 +12,7 @@ void init()
 #endif
 
 #ifdef PI_LIB_SENSORS
-//    init_sensors(); TODO
+    init_sensors();
 #endif
 
 #ifdef PI_LIB_DISPLAY
@@ -39,7 +39,7 @@ void clean()
 #endif
 
 #ifdef PI_LIB_SENSORS
-//    clean_sensors(); TODO
+    clean_sensors();
 #endif
 
 #ifdef PI_LIB_DISPLAY

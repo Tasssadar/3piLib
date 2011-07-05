@@ -44,6 +44,6 @@ inline void nop()
 template <typename T>
 inline T abs(T num)
 {
-    return (num < 0 ? -num : num);
+    return (num < 0) ? -num : num;
 }
 #endif
