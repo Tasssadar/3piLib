@@ -46,4 +46,48 @@ inline T abs(T num)
 {
     return (num < 0) ? -num : num;
 }
+
+template <typename T>
+T load_eeprom(uint16_t address)
+{
+    T res;
+    char * ptr = (char *) &res;
+    char * pend = ptr + sizeof res;
+
+    EEARH = (address >> 8);
+    EEARL = uint8_t(address);
+
+    while (ptr != pend)
+    {
+        EECR = (1<<EERE);
+        *ptr++ = EEDR;
+        ++EEARL;
+    }
+
+    return res;
+}
+
+template <typename T>
+void store_eeprom(uint16_t address, T value)
+{
+    char * ptr = (char *) &value;
+    char * pend = ptr + sizeof value;
+
+    EEARH = (address >> 8);
+    EEARL = uint8_t(address);
+
+    while (ptr != pend)
+    {
+        EEDR = *ptr++;
+
+        EECR = (1<<EEMPE);
+        EECR = (1<<EEPE);
+
+        while (EECR & (1<<EEPE))
+        {
+        }
+
+        ++EEARL;
+    }
+}
 #endif

@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 9
+#define PI_LIB_VERSION 10
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -47,6 +47,50 @@ template <typename T>
 inline T abs(T num)
 {
     return (num < 0) ? -num : num;
+}
+
+template <typename T>
+T load_eeprom(uint16_t address)
+{
+    T res;
+    char * ptr = (char *) &res;
+    char * pend = ptr + sizeof res;
+
+    EEARH = (address >> 8);
+    EEARL = uint8_t(address);
+
+    while (ptr != pend)
+    {
+        EECR = (1<<EERE);
+        *ptr++ = EEDR;
+        ++EEARL;
+    }
+
+    return res;
+}
+
+template <typename T>
+void store_eeprom(uint16_t address, T value)
+{
+    char * ptr = (char *) &value;
+    char * pend = ptr + sizeof value;
+
+    EEARH = (address >> 8);
+    EEARL = uint8_t(address);
+
+    while (ptr != pend)
+    {
+        EEDR = *ptr++;
+
+        EECR = (1<<EEMPE);
+        EECR = (1<<EEPE);
+
+        while (EECR & (1<<EEPE))
+        {
+        }
+
+        ++EEARL;
+    }
 }
 #endif
 
@@ -289,6 +333,7 @@ struct ground_sensors_t
 
 volatile struct ground_sensors_t g_sensors;
 uint16_t g_threshold = 512;
+
 ISR(ADC_vect)
 {
     static uint8_t currentSensor = 0;
@@ -635,7 +680,7 @@ public:
 
         if (n != 0)
         {
-            T a = (n < 0)? -n: n;
+            T a = abs(n);
 
             while (a > 0)
             {
@@ -1015,7 +1060,7 @@ public:
 
         if (n != 0)
         {
-            T a = (n < 0)? -n: n;
+            T a = abs(n);
 
             while (a > 0)
             {
@@ -1044,7 +1089,7 @@ public:
 
         if (n != 0)
         {
-            T a = (n < 0)? -n: n;
+            T a = abs(n);
 
             while (a > 0)
             {

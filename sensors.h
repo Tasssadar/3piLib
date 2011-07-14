@@ -12,6 +12,7 @@ struct ground_sensors_t
 
 volatile struct ground_sensors_t g_sensors;
 uint16_t g_threshold = 512;
+
 ISR(ADC_vect)
 {
     static uint8_t currentSensor = 0;

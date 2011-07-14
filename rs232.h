@@ -170,7 +170,7 @@ public:
 
         if (n != 0)
         {
-            T a = (n < 0)? -n: n;
+            T a = abs(n);
 
             while (a > 0)
             {
@@ -199,7 +199,7 @@ public:
 
         if (n != 0)
         {
-            T a = (n < 0)? -n: n;
+            T a = abs(n);
 
             while (a > 0)
             {
