@@ -8,13 +8,14 @@ public:
     {
         m_running = false;
         m_started = false;
-        m_freq = 0;
+        m_freq = 1250;
+        m_time_on = m_time_off = 0;
     }
     
     void set(uint16_t time_on = 0, uint16_t time_off = 0, bool run = true)
     {
         m_running = false;
-        m_freq = 1250; //F_CPU/(hz*16); // 2*prescaler(8)
+       // m_freq = F_CPU/(hz*16); // 2*prescaler(8)
         m_time_on = time_on;
         m_time_off = time_off;
         if(run)
