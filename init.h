@@ -7,6 +7,10 @@ void init()
     init_timer();
 #endif
 
+#ifdef PI_LIB_BUZZER
+    init_buzzer();
+#endif
+
 #ifdef PI_LIB_MOTORS
     init_motors();
 #endif
@@ -38,6 +42,10 @@ void clean()
     clean_timer();
 #endif
 
+#ifdef PI_LIB_BUZZER
+    clean_buzzer();
+#endif
+    
 #ifdef PI_LIB_MOTORS
     clean_motors();
 #endif

@@ -45,6 +45,7 @@ namespace detail
     volatile int16_t g_speed_cur[2] = {0, 0};
     volatile bool g_need_set_speed[2] = {false, false};
     volatile bool g_soft_speed_set = true;
+    volatile bool g_speed_is_setted = false;
 
     void setLeftMotor(int16_t speed)
     {

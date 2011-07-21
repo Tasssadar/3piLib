@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 10
+#define PI_LIB_VERSION 11
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -141,6 +141,7 @@ namespace detail
     volatile int16_t g_speed_cur[2] = {0, 0};
     volatile bool g_need_set_speed[2] = {false, false};
     volatile bool g_soft_speed_set = true;
+    volatile bool g_speed_is_setted = false;
 
     void setLeftMotor(int16_t speed)
     {
@@ -232,6 +233,125 @@ inline void setSoftAccel(bool enabled)
 
 #endif
 
+#ifndef PI_LIB_BUZZER
+#define PI_LIB_BUZZER
+
+class buzzer_t
+{
+public:
+    buzzer_t()
+    {
+        m_running = false;
+        m_started = false;
+        m_freq = 0;
+    }
+    
+    void set(uint16_t time_on = 0, uint16_t time_off = 0, bool run = true)
+    {
+        m_running = false;
+        m_freq = 1250; //F_CPU/(hz*16); // 2*prescaler(8)
+        m_time_on = time_on;
+        m_time_off = time_off;
+        if(run)
+            start();
+    }
+
+    void start()
+    {
+        if(!m_freq)
+            return;
+
+        m_running = m_started = true;
+
+        if(!m_time_on || !m_time_off)
+            m_timer = -1;
+        else
+            m_timer = m_time_on;
+        TCCR1A |= (1 << COM1B0);
+        OCR1BH = (m_freq >> 8);
+        OCR1BL = uint8_t(m_freq);
+    }
+
+    void stop()
+    {
+        m_running = m_started = false;
+        TCCR1A &= ~(1 << COM1B0);
+        OCR1BH = 0;
+        OCR1BL = 0;
+    }
+
+    bool isStarted()
+    {
+        return m_started;
+    }
+
+    void update()
+    {
+        if(!m_started || m_timer == -1)
+            return;
+
+        --m_timer;
+        if(m_timer == 0)
+        {
+            if(m_running)
+            {
+                m_timer = m_time_off;
+                TCCR1A &= ~(1 << COM1B0);
+                OCR1BH = 0;
+                OCR1BL = 0;
+            }
+            else
+            {
+                m_timer = m_time_on;
+                TCCR1A |= (1 << COM1B0);
+                OCR1BH = (m_freq >> 8);
+                OCR1BL = uint8_t(m_freq);
+            }
+            m_running = !m_running;
+        }
+    }
+
+    void emergency(bool on)
+    {
+        if(m_emergency == on)
+            return;
+        m_emergency = on;
+        if(on)
+            set(1000, 500);
+        else
+            stop();
+    }
+
+    bool isEmergency() { return m_emergency; }
+
+private:
+    uint16_t m_freq;
+    int16_t m_time_on;
+    int16_t m_time_off;
+    int16_t m_timer;
+    volatile bool m_running;
+    volatile bool m_started;
+    volatile bool m_emergency;
+};
+
+buzzer_t buzzer;
+
+void init_buzzer()
+{
+    TCCR1B = (1 << WGM12) | (1 << CS11);
+
+    OCR1BH = 0;
+    OCR1BL = 0;
+    DDRB |= (1 << 2);
+    PORTB &= ~(1 << 2);
+}
+
+void clean_buzzer()
+{
+    buzzer.stop();
+}
+
+#endif
 #ifndef PI_LIB_TIME
 #define PI_LIB_TIME
 
@@ -279,8 +399,8 @@ void init_timer()
     // Setup timer to 1 ms
     TCCR1B = (1 << WGM12) | (1 << CS11);
     
-    OCR1AH = (2500 >> 8);
-    OCR1AL = (2500 & 0xFF);
+    OCR1AH = (1250 >> 8);
+    OCR1AL = (1250 & 0xFF);
     
     TIMSK1 |=(1<<OCIE1A);
 }
@@ -292,29 +412,35 @@ void clean_timer()
 }
 
 ISR(TIMER1_COMPA_vect)
-{  
-   ++g_timer;
-   
-   for(uint8_t i = 0; i < 2; ++i)
-   {
-       if(!detail::g_need_set_speed[i])
-           continue;
+{
+    ++g_timer;
+
+    buzzer.update();
+
+    if(detail::g_speed_is_setted)
+        return;
+    detail::g_speed_is_setted = true;
+    for(uint8_t i = 0; i < 2; ++i)
+    {
+        if(!detail::g_need_set_speed[i])
+            continue;
        
-       if(detail::g_speed[i] == detail::g_speed_cur[i])
-       {
-           detail::g_need_set_speed[i] = false;
-           continue;
-       }
+        if(detail::g_speed[i] == detail::g_speed_cur[i])
+        {
+            detail::g_need_set_speed[i] = false;
+            continue;
+        }
        
-       int16_t val = abs(detail::g_speed[i]-detail::g_speed_cur[i]);
-       if(val >= MOTORS_ACCELERATION)
-           val = MOTORS_ACCELERATION;
+        int16_t val = abs(detail::g_speed[i]-detail::g_speed_cur[i]);
+        if(val >= MOTORS_ACCELERATION)
+            val = MOTORS_ACCELERATION;
        
-       if(detail::g_speed[i] < detail::g_speed_cur[i])
-           val *= -1;
-       detail::g_speed_cur[i] += val;
-       setMotorPowerID(i, detail::g_speed_cur[i]);
-   }
+        if(detail::g_speed[i] < detail::g_speed_cur[i])
+            val *= -1;
+        detail::g_speed_cur[i] += val;
+        setMotorPowerID(i, detail::g_speed_cur[i]);
+    }
+    detail::g_speed_is_setted = false;
 }
 
 #endif
@@ -323,8 +449,8 @@ ISR(TIMER1_COMPA_vect)
 #define PI_LIB_SENSORS
 
 // LOW_BATTERY = (((low_voltage_in_mv*2-1)/3)*1023-511)/5000;
-// Current setting is 5000mV
-//#define LOW_BATTERY 681
+// Current setting is 4800mV
+#define LOW_BATTERY 654
 
 struct ground_sensors_t
 {
@@ -349,7 +475,13 @@ ISR(ADC_vect)
         g_sensors.value[currentSensor++] = value;
 
         if(currentSensor == 6)
+        {
             currentSensor = 0;
+            if(buzzer.isEmergency() && value > LOW_BATTERY)
+                buzzer.emergency(false);
+            else if(!buzzer.isEmergency() && value < LOW_BATTERY)
+                buzzer.emergency(true);
+        }
         
         ADMUX = (1<<REFS0)|sensorMap[currentSensor];
     }
@@ -1263,6 +1395,10 @@ void init()
     init_timer();
 #endif
 
+#ifdef PI_LIB_BUZZER
+    init_buzzer();
+#endif
+
 #ifdef PI_LIB_MOTORS
     init_motors();
 #endif
@@ -1294,6 +1430,10 @@ void clean()
     clean_timer();
 #endif
 
+#ifdef PI_LIB_BUZZER
+    clean_buzzer();
+#endif
+    
 #ifdef PI_LIB_MOTORS
     clean_motors();
 #endif

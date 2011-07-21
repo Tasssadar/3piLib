@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "motors.h"
+#include "buzzer.h"
 #include "time.h"
 #include "sensors.h"
 #include "display.h"

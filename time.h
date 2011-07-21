@@ -45,8 +45,8 @@ void init_timer()
     // Setup timer to 1 ms
     TCCR1B = (1 << WGM12) | (1 << CS11);
     
-    OCR1AH = (2500 >> 8);
-    OCR1AL = (2500 & 0xFF);
+    OCR1AH = (1250 >> 8);
+    OCR1AL = (1250 & 0xFF);
     
     TIMSK1 |=(1<<OCIE1A);
 }
@@ -58,29 +58,35 @@ void clean_timer()
 }
 
 ISR(TIMER1_COMPA_vect)
-{  
-   ++g_timer;
-   
-   for(uint8_t i = 0; i < 2; ++i)
-   {
-       if(!detail::g_need_set_speed[i])
-           continue;
+{
+    ++g_timer;
+
+    buzzer.update();
+
+    if(detail::g_speed_is_setted)
+        return;
+    detail::g_speed_is_setted = true;
+    for(uint8_t i = 0; i < 2; ++i)
+    {
+        if(!detail::g_need_set_speed[i])
+            continue;
        
-       if(detail::g_speed[i] == detail::g_speed_cur[i])
-       {
-           detail::g_need_set_speed[i] = false;
-           continue;
-       }
+        if(detail::g_speed[i] == detail::g_speed_cur[i])
+        {
+            detail::g_need_set_speed[i] = false;
+            continue;
+        }
        
-       int16_t val = abs(detail::g_speed[i]-detail::g_speed_cur[i]);
-       if(val >= MOTORS_ACCELERATION)
-           val = MOTORS_ACCELERATION;
+        int16_t val = abs(detail::g_speed[i]-detail::g_speed_cur[i]);
+        if(val >= MOTORS_ACCELERATION)
+            val = MOTORS_ACCELERATION;
        
-       if(detail::g_speed[i] < detail::g_speed_cur[i])
-           val *= -1;
-       detail::g_speed_cur[i] += val;
-       setMotorPowerID(i, detail::g_speed_cur[i]);
-   }
+        if(detail::g_speed[i] < detail::g_speed_cur[i])
+            val *= -1;
+        detail::g_speed_cur[i] += val;
+        setMotorPowerID(i, detail::g_speed_cur[i]);
+    }
+    detail::g_speed_is_setted = false;
 }
 
 #endif
