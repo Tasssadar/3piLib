@@ -88,7 +88,7 @@ public:
     }
 
     bool isEmergency() { return m_emergency; }
-    void setEmergencyEnabled(bool enable) { return m_emergencyEnabled = enable; }
+    void setEmergencyEnabled(bool enable) { m_emergencyEnabled = enable; }
 
 private:
     uint16_t m_freq;

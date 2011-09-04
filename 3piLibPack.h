@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 13
+#define PI_LIB_VERSION 14
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -323,7 +323,7 @@ public:
     }
 
     bool isEmergency() { return m_emergency; }
-    void setEmergencyEnabled(bool enable) { return m_emergencyEnabled = enable; }
+    void setEmergencyEnabled(bool enable) { m_emergencyEnabled = enable; }
 
 private:
     uint16_t m_freq;
