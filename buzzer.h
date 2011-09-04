@@ -6,12 +6,11 @@ class buzzer_t
 public:
     buzzer_t()
     {
-        m_running = false;
-        m_started = false;
+        m_running = m_emergencyEnabled = m_started = false;
         m_freq = 1250;
         m_time_on = m_time_off = 0;
     }
-    
+
     void set(uint16_t time_on = 0, uint16_t time_off = 0, bool run = true)
     {
         m_running = false;
@@ -79,7 +78,7 @@ public:
 
     void emergency(bool on)
     {
-        if(m_emergency == on)
+        if(!m_emergencyEnabled || m_emergency == on)
             return;
         m_emergency = on;
         if(on)
@@ -89,6 +88,7 @@ public:
     }
 
     bool isEmergency() { return m_emergency; }
+    void setEmergencyEnabled(bool enable) { return m_emergencyEnabled = enable; }
 
 private:
     uint16_t m_freq;
@@ -98,6 +98,7 @@ private:
     volatile bool m_running;
     volatile bool m_started;
     volatile bool m_emergency;
+    volatile bool m_emergencyEnabled;
 };
 
 buzzer_t buzzer;
