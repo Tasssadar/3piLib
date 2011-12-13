@@ -1,3 +1,5 @@
+#define PI_LIB_VERSION 16
+
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
 
@@ -566,6 +568,23 @@ void calibrate_sensors()
         if(max_sensor_values[i] < g_calibratedMinimum[i])
             g_calibratedMinimum[i] = max_sensor_values[i];
     }
+}
+
+void cal_round()
+{
+    resetCalibration();
+    for(uint8_t counter = 0; counter < 80; ++counter)
+    {
+        if(counter < 20 || counter >= 60)
+            setMotorPower(40,-40);
+        else
+            setMotorPower(-40,40);
+        calibrate_sensors();
+
+        // 80*20 = 1600 ms.
+        delay(20);
+    }
+    setMotorPower(0, 0);
 }
 
 inline uint16_t getBatteryVoltage()

@@ -121,6 +121,23 @@ void calibrate_sensors()
     }
 }
 
+void cal_round()
+{
+    resetCalibration();
+    for(uint8_t counter = 0; counter < 80; ++counter)
+    {
+        if(counter < 20 || counter >= 60)
+            setMotorPower(40,-40);
+        else
+            setMotorPower(-40,40);
+        calibrate_sensors();
+
+        // 80*20 = 1600 ms.
+        delay(20);
+    }
+    setMotorPower(0, 0);
+}
+
 inline uint16_t getBatteryVoltage()
 {
     return (((uint32_t(getSensorValue(5, false))*5000+511)/1023)*3+1)/2;
