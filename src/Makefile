@@ -1,5 +1,5 @@
 ###############################################################################
-# Makefile for the project 3piControl
+# Makefile for the project 3piLib
 ###############################################################################
 
 ## General Flags
@@ -46,7 +46,7 @@ OBJECTS = 3piLib.o
 LINKONLYOBJECTS = 
 
 ## Build
-all: $(TARGET) 3piControl.hex 3piControl.eep 3piControl.lss size
+all: $(TARGET) 3piLib.hex 3piLib.eep 3piLib.lss size
 
 ## Compile
 3piLib.o: ./3piLib.cpp

@@ -6,6 +6,6 @@ fi
 files=( common.h motors.h buzzer.h time.h sensors.h display.h rs232.h i2c.h buttons.h init.h )
 for file in ${files[@]}
 do
-    cat $file >> 3piLibPack.h
+    cat src/$file >> 3piLibPack.h
     echo  >> 3piLibPack.h
 done

@@ -1,5 +1,3 @@
-#define PI_LIB_VERSION 15
-
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
 
