@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 16
+#define PI_LIB_VERSION 17
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -455,10 +455,12 @@ ISR(TIMER1_COMPA_vect)
 #define LOW_BATTERY 654
 
 #define PI_GRND_SENSOR_COUNT 5
+#define PI_TOTAL_SENSORS 7
+#define PI_VCC 5000
 
 struct ground_sensors_t
 {
-    uint16_t value[6];
+    uint16_t value[PI_TOTAL_SENSORS];
 };
 
 volatile struct ground_sensors_t g_sensors;
@@ -470,7 +472,7 @@ ISR(ADC_vect)
 {
     static uint8_t currentSensor = 0;
     static bool initSensor = false;
-    static const uint8_t sensorMap[6] = { 0, 1, 2, 3, 4, 6 };
+    static const uint8_t sensorMap[PI_TOTAL_SENSORS] = { 0, 1, 2, 3, 4, 6, 7 };
     
     if (initSensor)
     {
@@ -480,7 +482,7 @@ ISR(ADC_vect)
         uint16_t value = (adch << 8) | (adcl);
         g_sensors.value[currentSensor++] = value;
 
-        if(currentSensor == 6)
+        if(currentSensor == PI_TOTAL_SENSORS)
         {
             currentSensor = 0;
             if(buzzer.isEmergency() && value > LOW_BATTERY)
@@ -589,9 +591,18 @@ void cal_round()
 
 inline uint16_t getBatteryVoltage()
 {
-    return (((uint32_t(getSensorValue(5, false))*5000+511)/1023)*3+1)/2;
+    return (((uint32_t(getSensorValue(5, false))*PI_VCC+511)/1023)*3+1)/2;
 }
 
+inline uint8_t getTrimPct()
+{
+    return (uint32_t(getSensorValue(6, false))*100)/1023;
+}
+
+inline uint16_t getTrimMV()
+{
+    return (uint32_t(getTrimPct()) * PI_VCC)/100;
+}
 
 void init_sensors()
 {
@@ -608,6 +619,7 @@ void init_sensors()
     g_sensors.value[3] = 1024;
     g_sensors.value[4] = 1024;
     g_sensors.value[5] = 1024;
+    g_sensors.value[6] = 1024;
 
     resetCalibration();
 }
