@@ -16,8 +16,8 @@ struct ground_sensors_t
 
 volatile struct ground_sensors_t g_sensors;
 
-volatile uint16_t g_calibratedMinimum[PI_GRND_SENSOR_COUNT];
-volatile uint16_t g_calibratedMaximum[PI_GRND_SENSOR_COUNT];
+volatile int16_t g_calibratedMinimum[PI_GRND_SENSOR_COUNT];
+volatile int16_t g_calibratedMaximum[PI_GRND_SENSOR_COUNT];
 
 ISR(ADC_vect)
 {
@@ -66,7 +66,7 @@ inline int16_t getSensorValue(uint8_t index, bool threshold = true)
     
     if(threshold)
     {
-        uint16_t denominator = g_calibratedMaximum[index] - g_calibratedMinimum[index];
+        int16_t denominator = g_calibratedMaximum[index] - g_calibratedMinimum[index];
 
         int16_t val = res;
         if(denominator)
@@ -94,9 +94,9 @@ void resetCalibration()
 void calibrate_sensors()
 {
     uint8_t i;
-    uint16_t sensor_value;
-    uint16_t max_sensor_values[PI_GRND_SENSOR_COUNT];
-    uint16_t min_sensor_values[PI_GRND_SENSOR_COUNT];
+    int16_t sensor_value;
+    int16_t max_sensor_values[PI_GRND_SENSOR_COUNT];
+    int16_t min_sensor_values[PI_GRND_SENSOR_COUNT];
 
     for(uint8_t j = 0; j<10; ++j)
     {
