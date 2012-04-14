@@ -24,12 +24,12 @@ ISR(ADC_vect)
     static uint8_t currentSensor = 0;
     static bool initSensor = false;
     static const uint8_t sensorMap[PI_TOTAL_SENSORS] = { 0, 1, 2, 3, 4, 6, 7 };
-    
+
     if (initSensor)
     {
         uint8_t adcl = ADCL;
         uint8_t adch = ADCH;
-        
+
         uint16_t value = (adch << 8) | (adcl);
         g_sensors.value[currentSensor++] = value;
 
@@ -41,12 +41,12 @@ ISR(ADC_vect)
             else if(!buzzer.isEmergency() && value < LOW_BATTERY)
                 buzzer.emergency(true);
         }
-        
+
         ADMUX = (1<<REFS0)|sensorMap[currentSensor];
     }
-    
+
     initSensor = !initSensor;
-    
+
     // Start the next conversion
     ADCSRA |= (1<<ADSC);
 }
@@ -63,7 +63,7 @@ inline int16_t getSensorValue(uint8_t index, bool threshold = true)
     int16_t res = g_sensors.value[index];
     sei();
     nop();
-    
+
     if(threshold)
     {
         int16_t denominator = g_calibratedMaximum[index] - g_calibratedMinimum[index];
@@ -138,6 +138,70 @@ void cal_round()
         delay(20);
     }
     setMotorPower(0, 0);
+}
+
+// int PololuQTRSensors::readLine(unsigned int *sensor_values,
+//                                unsigned char readMode, unsigned char white_line)
+// from Pololu lib, src/PololuQTRSensors/PololuQTRSensors.cpp
+
+// Operates the same as read calibrated, but also returns an
+// estimated position of the robot with respect to a line. The
+// estimate is made using a weighted average of the sensor indices
+// multiplied by 1000, so that a return value of 0 indicates that
+// the line is directly below sensor 0, a return value of 1000
+// indicates that the line is directly below sensor 1, 2000
+// indicates that it's below sensor 2000, etc.  Intermediate
+// values indicate that the line is between two sensors.  The
+// formula is:
+//
+//    0*value0 + 1000*value1 + 2000*value2 + ...
+//   --------------------------------------------
+//         value0  +  value1  +  value2 + ...
+//
+// By default, this function assumes a dark line (high values)
+// surrounded by white (low values).  If your line is light on
+// black, set the optional second argument white_line to true.  In
+// this case, each sensor value will be replaced by (1000-value)
+// before the averaging.
+int16_t getLinePos(bool white_line = false)
+{
+    bool on_line = false;
+    uint8_t i;
+    uint32_t avg = 0; // this is for the weighted total, which is long
+                      // before division
+    uint16_t sum = 0; // this is for the denominator which is <= 64000
+    static int16_t last_value = 0; // assume initially that the line is left.
+
+    for(i = 0; i < PI_GRND_SENSOR_COUNT; ++i)
+    {
+        int16_t value = getSensorValue(i);
+        if(white_line)
+            value = 1024-value;
+
+        // keep track of whether we see the line at all
+        if(value > 200)
+            on_line = 1;
+
+        // only average in values that are above a noise threshold
+        if(value > 50)
+        {
+            avg += (int32_t)(value) * (i * 1024);
+            sum += value;
+        }
+    }
+
+    if(!on_line)
+    {
+        // If it last read to the left of center, return 0.
+        if(last_value < (PI_GRND_SENSOR_COUNT-1)*1024/2)
+            return 0;
+        else // If it last read to the right of center, return the max.
+            return (PI_GRND_SENSOR_COUNT-1)*1024;
+
+    }
+
+    last_value = avg/sum;
+    return last_value;
 }
 
 inline uint16_t getBatteryVoltage()
