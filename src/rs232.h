@@ -144,6 +144,8 @@ public:
 
     void sendCharacter(char ch)
     {
+        while (m_txbuf.full())
+            JUNIOR_DO_IDLE();
         m_txbuf.push(ch);
         UCSR0B |= (1<<UDRIE0);
     }

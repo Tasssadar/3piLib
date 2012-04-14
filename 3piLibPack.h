@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 19
+#define PI_LIB_VERSION 20
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -1314,6 +1314,8 @@ public:
 
     void sendCharacter(char ch)
     {
+        while (m_txbuf.full())
+            JUNIOR_DO_IDLE();
         m_txbuf.push(ch);
         UCSR0B |= (1<<UDRIE0);
     }
