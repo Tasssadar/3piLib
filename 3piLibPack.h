@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 21
+#define PI_LIB_VERSION 22
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -591,23 +591,49 @@ void cal_round()
 
 void store_sensor_cal(uint16_t address)
 {
-    for(uint8_t i = 0; i < PI_GRND_SENSOR_COUNT; ++i)
+    int32_t val = 0;
+    uint8_t bits = 0;
+    for(uint8_t i = 0; i < PI_GRND_SENSOR_COUNT*2;++i)
     {
-        store_eeprom(address, g_calibratedMinimum[i]);
-        address += 2;
-        store_eeprom(address, g_calibratedMaximum[i]);
-        address += 2;
+        if(i < PI_GRND_SENSOR_COUNT)
+            val |= ((g_calibratedMinimum[i] & 0x7FF) << bits);
+        else
+            val |= ((g_calibratedMaximum[i-5] & 0x7FF) << bits);
+
+        bits += 11;
+
+        for(uint8_t y = 0; bits >= 8;++y)
+        {
+            store_eeprom(address++, uint8_t(val & 0xFF));
+            val >>= 8;
+            bits -= 8;
+        }
     }
+
+    if(bits)
+        store_eeprom(address, uint8_t(val));
 }
 
 void load_sensor_cal(uint16_t address)
 {
-    for(uint8_t i = 0; i < PI_GRND_SENSOR_COUNT; ++i)
+    int32_t val = 0;
+    uint8_t bits = 0;
+    for(uint8_t i = 0; i < PI_GRND_SENSOR_COUNT*2;)
     {
-        g_calibratedMinimum[i] = load_eeprom<int16_t>(address);
-        address += 2;
-        g_calibratedMaximum[i] = load_eeprom<int16_t>(address);
-        address += 2;
+        val |= (load_eeprom<uint8_t>(address++) << bits);
+        bits += 8;
+
+        while(bits >= 11)
+        {
+            if(i < 5)
+                g_calibratedMinimum[i] = (val & 0x7FF);
+            else
+                g_calibratedMaximum[i-5] = (val & 0x7FF);
+
+            val >>= 11;
+            bits -= 11;
+            ++i;
+        }
     }
 }
 
