@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 20
+#define PI_LIB_VERSION 21
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -587,6 +587,28 @@ void cal_round()
         delay(20);
     }
     setMotorPower(0, 0);
+}
+
+void store_sensor_cal(uint16_t address)
+{
+    for(uint8_t i = 0; i < PI_GRND_SENSOR_COUNT; ++i)
+    {
+        store_eeprom(address, g_calibratedMinimum[i]);
+        address += 2;
+        store_eeprom(address, g_calibratedMaximum[i]);
+        address += 2;
+    }
+}
+
+void load_sensor_cal(uint16_t address)
+{
+    for(uint8_t i = 0; i < PI_GRND_SENSOR_COUNT; ++i)
+    {
+        g_calibratedMinimum[i] = load_eeprom<int16_t>(address);
+        address += 2;
+        g_calibratedMaximum[i] = load_eeprom<int16_t>(address);
+        address += 2;
+    }
 }
 
 // int PololuQTRSensors::readLine(unsigned int *sensor_values,
