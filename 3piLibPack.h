@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 22
+#define PI_LIB_VERSION 23
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -263,7 +263,7 @@ public:
 
         m_running = m_started = true;
 
-        if(!m_time_on || !m_time_off)
+        if(!m_time_on)
             m_timer = -1;
         else
             m_timer = m_time_on;
@@ -295,7 +295,11 @@ public:
         {
             if(m_running)
             {
-                m_timer = m_time_off;
+                if(m_time_off == 0)
+                    m_timer = -1;
+                else
+                    m_timer = m_time_off;
+
                 TCCR1A &= ~(1 << COM1B0);
                 OCR1BH = 0;
                 OCR1BL = 0;
