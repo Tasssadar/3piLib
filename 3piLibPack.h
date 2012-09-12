@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 23
+#define PI_LIB_VERSION 24
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -600,13 +600,13 @@ void store_sensor_cal(uint16_t address)
     for(uint8_t i = 0; i < PI_GRND_SENSOR_COUNT*2;++i)
     {
         if(i < PI_GRND_SENSOR_COUNT)
-            val |= ((g_calibratedMinimum[i] & 0x7FF) << bits);
+            val |= (int32_t(g_calibratedMinimum[i] & 0x7FF) << bits);
         else
-            val |= ((g_calibratedMaximum[i-5] & 0x7FF) << bits);
+            val |= (int32_t(g_calibratedMaximum[i-5] & 0x7FF) << bits);
 
         bits += 11;
 
-        for(uint8_t y = 0; bits >= 8;++y)
+        while(bits >= 8)
         {
             store_eeprom(address++, uint8_t(val & 0xFF));
             val >>= 8;
@@ -624,7 +624,7 @@ void load_sensor_cal(uint16_t address)
     uint8_t bits = 0;
     for(uint8_t i = 0; i < PI_GRND_SENSOR_COUNT*2;)
     {
-        val |= (load_eeprom<uint8_t>(address++) << bits);
+        val |= (int32_t(load_eeprom<uint8_t>(address++)) << bits);
         bits += 8;
 
         while(bits >= 11)
