@@ -2,7 +2,7 @@
 #define PI_LIB_RS232
 
 #ifndef JUNIOR_RS232_BPS
-#define JUNIOR_RS232_BPS 38400
+#define JUNIOR_RS232_BPS 115200
 #endif
 
 #ifndef JUNIOR_RS232_TXBUF
