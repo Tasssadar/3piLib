@@ -23,6 +23,8 @@ void init_motors()
     // initialize all PWMs to 0% duty cycle (braking)
     OCR0A = OCR0B = OCR2A = OCR2B = 0;
 
+    TIMSK0 |= (1 << TOIE0);
+
     DDRD |= (1 << PIN5) | (1 << PIN6)| (1 << PIN3);
     DDRB |= (1 << PIN3);
     PORTD &= ~(1 << PIN5);
@@ -40,12 +42,14 @@ void clean_motors()
 }
 
 namespace detail
-{  
+{
     volatile int16_t g_speed[2] = {0, 0};
     volatile int16_t g_speed_cur[2] = {0, 0};
     volatile bool g_need_set_speed[2] = {false, false};
     volatile bool g_soft_speed_set = true;
     volatile bool g_speed_is_setted = false;
+    volatile uint8_t g_sub_timer = 0;
+    volatile uint32_t g_timer = 0;
 
     void setLeftMotor(int16_t speed)
     {
@@ -134,5 +138,42 @@ inline void setSoftAccel(bool enabled)
 {
     detail::g_soft_speed_set = enabled;
 }
+
+ISR(TIMER0_OVF_vect)
+{
+    if(++detail::g_sub_timer != 10)
+        return;
+
+    detail::g_sub_timer = 0;
+    ++detail::g_timer;
+
+    buzzer.update();
+
+    if(detail::g_speed_is_setted)
+        return;
+    detail::g_speed_is_setted = true;
+    for(uint8_t i = 0; i < 2; ++i)
+    {
+        if(!detail::g_need_set_speed[i])
+            continue;
+
+        if(detail::g_speed[i] == detail::g_speed_cur[i])
+        {
+            detail::g_need_set_speed[i] = false;
+            continue;
+        }
+
+        int16_t val = abs(detail::g_speed[i]-detail::g_speed_cur[i]);
+        if(val >= MOTORS_ACCELERATION)
+            val = MOTORS_ACCELERATION;
+
+        if(detail::g_speed[i] < detail::g_speed_cur[i])
+            val *= -1;
+        detail::g_speed_cur[i] += val;
+        setMotorPowerID(i, detail::g_speed_cur[i]);
+    }
+    detail::g_speed_is_setted = false;
+}
+
 
 #endif

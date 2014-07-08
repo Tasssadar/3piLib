@@ -7,14 +7,13 @@ public:
     buzzer_t()
     {
         m_running = m_emergencyEnabled = m_started = false;
-        m_freq = 1250;
+        m_freq = 2500;
         m_time_on = m_time_off = 0;
     }
 
     void set(uint16_t time_on = 0, uint16_t time_off = 0, bool run = true)
     {
         m_running = false;
-       // m_freq = F_CPU/(hz*16); // 2*prescaler(8)
         m_time_on = time_on;
         m_time_off = time_off;
         if(run)
@@ -32,22 +31,33 @@ public:
             m_timer = -1;
         else
             m_timer = m_time_on;
+        TCCR1B = (1 << WGM12) | (1 << CS11);
+        OCR1AH = (m_freq >> 8);
+        OCR1AL = (m_freq & 0xFF);
         TCCR1A |= (1 << COM1B0);
-        OCR1BH = (m_freq >> 8);
-        OCR1BL = uint8_t(m_freq);
     }
 
     void stop()
     {
         m_running = m_started = false;
+        TCCR1A = 0;
+        TCCR1B = 0;
         TCCR1A &= ~(1 << COM1B0);
-        OCR1BH = 0;
-        OCR1BL = 0;
     }
 
     bool isStarted()
     {
         return m_started;
+    }
+
+    void setFreq(uint32_t hz)
+    {
+        m_freq = F_CPU/(hz*16);
+        if(m_running)
+        {
+            OCR1AH = (m_freq >> 8);
+            OCR1AL = (m_freq & 0xFF);
+        }
     }
 
     void update()
@@ -66,15 +76,15 @@ public:
                     m_timer = m_time_off;
 
                 TCCR1A &= ~(1 << COM1B0);
-                OCR1BH = 0;
-                OCR1BL = 0;
+                OCR1AH = (m_freq >> 8);
+                OCR1AL = (m_freq & 0xFF);
             }
             else
             {
                 m_timer = m_time_on;
                 TCCR1A |= (1 << COM1B0);
-                OCR1BH = (m_freq >> 8);
-                OCR1BL = uint8_t(m_freq);
+                OCR1AH = (m_freq >> 8);
+                OCR1AL = (m_freq & 0xFF);
             }
             m_running = !m_running;
         }

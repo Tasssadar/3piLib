@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 26
+#define PI_LIB_VERSION 27
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -94,6 +94,141 @@ void store_eeprom(uint16_t address, T value)
 }
 #endif
 
+#ifndef PI_LIB_BUZZER
+#define PI_LIB_BUZZER
+
+class buzzer_t
+{
+public:
+    buzzer_t()
+    {
+        m_running = m_emergencyEnabled = m_started = false;
+        m_freq = 2500;
+        m_time_on = m_time_off = 0;
+    }
+
+    void set(uint16_t time_on = 0, uint16_t time_off = 0, bool run = true)
+    {
+        m_running = false;
+        m_time_on = time_on;
+        m_time_off = time_off;
+        if(run)
+            start();
+    }
+
+    void start()
+    {
+        if(!m_freq)
+            return;
+
+        m_running = m_started = true;
+
+        if(!m_time_on)
+            m_timer = -1;
+        else
+            m_timer = m_time_on;
+        TCCR1B = (1 << WGM12) | (1 << CS11);
+        OCR1AH = (m_freq >> 8);
+        OCR1AL = (m_freq & 0xFF);
+        TCCR1A |= (1 << COM1B0);
+    }
+
+    void stop()
+    {
+        m_running = m_started = false;
+        TCCR1A = 0;
+        TCCR1B = 0;
+        TCCR1A &= ~(1 << COM1B0);
+    }
+
+    bool isStarted()
+    {
+        return m_started;
+    }
+
+    void setFreq(uint32_t hz)
+    {
+        m_freq = F_CPU/(hz*16);
+        if(m_running)
+        {
+            OCR1AH = (m_freq >> 8);
+            OCR1AL = (m_freq & 0xFF);
+        }
+    }
+
+    void update()
+    {
+        if(!m_started || m_timer == -1)
+            return;
+
+        --m_timer;
+        if(m_timer == 0)
+        {
+            if(m_running)
+            {
+                if(m_time_off == 0)
+                    m_timer = -1;
+                else
+                    m_timer = m_time_off;
+
+                TCCR1A &= ~(1 << COM1B0);
+                OCR1AH = (m_freq >> 8);
+                OCR1AL = (m_freq & 0xFF);
+            }
+            else
+            {
+                m_timer = m_time_on;
+                TCCR1A |= (1 << COM1B0);
+                OCR1AH = (m_freq >> 8);
+                OCR1AL = (m_freq & 0xFF);
+            }
+            m_running = !m_running;
+        }
+    }
+
+    void emergency(bool on)
+    {
+        if(!m_emergencyEnabled || m_emergency == on)
+            return;
+        m_emergency = on;
+        if(on)
+            set(1000, 500);
+        else
+            stop();
+    }
+
+    bool isEmergency() { return m_emergency; }
+    void setEmergencyEnabled(bool enable) { m_emergencyEnabled = enable; }
+
+private:
+    uint16_t m_freq;
+    int16_t m_time_on;
+    int16_t m_time_off;
+    int16_t m_timer;
+    volatile bool m_running;
+    volatile bool m_started;
+    volatile bool m_emergency;
+    volatile bool m_emergencyEnabled;
+};
+
+buzzer_t buzzer;
+
+void init_buzzer()
+{
+    TCCR1B = (1 << WGM12) | (1 << CS11);
+
+    OCR1BH = 0;
+    OCR1BL = 0;
+    DDRB |= (1 << 2);
+    PORTB &= ~(1 << 2);
+}
+
+void clean_buzzer()
+{
+    buzzer.stop();
+}
+
+#endif
 #ifndef PI_LIB_MOTORS
 #define PI_LIB_MOTORS
 
@@ -119,6 +254,8 @@ void init_motors()
     // initialize all PWMs to 0% duty cycle (braking)
     OCR0A = OCR0B = OCR2A = OCR2B = 0;
 
+    TIMSK0 |= (1 << TOIE0);
+
     DDRD |= (1 << PIN5) | (1 << PIN6)| (1 << PIN3);
     DDRB |= (1 << PIN3);
     PORTD &= ~(1 << PIN5);
@@ -136,12 +273,14 @@ void clean_motors()
 }
 
 namespace detail
-{  
+{
     volatile int16_t g_speed[2] = {0, 0};
     volatile int16_t g_speed_cur[2] = {0, 0};
     volatile bool g_need_set_speed[2] = {false, false};
     volatile bool g_soft_speed_set = true;
     volatile bool g_speed_is_setted = false;
+    volatile uint8_t g_sub_timer = 0;
+    volatile uint32_t g_timer = 0;
 
     void setLeftMotor(int16_t speed)
     {
@@ -231,196 +370,13 @@ inline void setSoftAccel(bool enabled)
     detail::g_soft_speed_set = enabled;
 }
 
-#endif
-
-#ifndef PI_LIB_BUZZER
-#define PI_LIB_BUZZER
-
-class buzzer_t
+ISR(TIMER0_OVF_vect)
 {
-public:
-    buzzer_t()
-    {
-        m_running = m_emergencyEnabled = m_started = false;
-        m_freq = 1250;
-        m_time_on = m_time_off = 0;
-    }
+    if(++detail::g_sub_timer != 10)
+        return;
 
-    void set(uint16_t time_on = 0, uint16_t time_off = 0, bool run = true)
-    {
-        m_running = false;
-       // m_freq = F_CPU/(hz*16); // 2*prescaler(8)
-        m_time_on = time_on;
-        m_time_off = time_off;
-        if(run)
-            start();
-    }
-
-    void start()
-    {
-        if(!m_freq)
-            return;
-
-        m_running = m_started = true;
-
-        if(!m_time_on)
-            m_timer = -1;
-        else
-            m_timer = m_time_on;
-        TCCR1A |= (1 << COM1B0);
-        OCR1BH = (m_freq >> 8);
-        OCR1BL = uint8_t(m_freq);
-    }
-
-    void stop()
-    {
-        m_running = m_started = false;
-        TCCR1A &= ~(1 << COM1B0);
-        OCR1BH = 0;
-        OCR1BL = 0;
-    }
-
-    bool isStarted()
-    {
-        return m_started;
-    }
-
-    void update()
-    {
-        if(!m_started || m_timer == -1)
-            return;
-
-        --m_timer;
-        if(m_timer == 0)
-        {
-            if(m_running)
-            {
-                if(m_time_off == 0)
-                    m_timer = -1;
-                else
-                    m_timer = m_time_off;
-
-                TCCR1A &= ~(1 << COM1B0);
-                OCR1BH = 0;
-                OCR1BL = 0;
-            }
-            else
-            {
-                m_timer = m_time_on;
-                TCCR1A |= (1 << COM1B0);
-                OCR1BH = (m_freq >> 8);
-                OCR1BL = uint8_t(m_freq);
-            }
-            m_running = !m_running;
-        }
-    }
-
-    void emergency(bool on)
-    {
-        if(!m_emergencyEnabled || m_emergency == on)
-            return;
-        m_emergency = on;
-        if(on)
-            set(1000, 500);
-        else
-            stop();
-    }
-
-    bool isEmergency() { return m_emergency; }
-    void setEmergencyEnabled(bool enable) { m_emergencyEnabled = enable; }
-
-private:
-    uint16_t m_freq;
-    int16_t m_time_on;
-    int16_t m_time_off;
-    int16_t m_timer;
-    volatile bool m_running;
-    volatile bool m_started;
-    volatile bool m_emergency;
-    volatile bool m_emergencyEnabled;
-};
-
-buzzer_t buzzer;
-
-void init_buzzer()
-{
-    TCCR1B = (1 << WGM12) | (1 << CS11);
-
-    OCR1BH = 0;
-    OCR1BL = 0;
-    DDRB |= (1 << 2);
-    PORTB &= ~(1 << 2);
-}
-
-void clean_buzzer()
-{
-    buzzer.stop();
-}
-
-#endif
-#ifndef PI_LIB_TIME
-#define PI_LIB_TIME
-
-// Delays for for the specified nubmer of microseconds.
-inline void delayMicroseconds(uint16_t microseconds)
-{
-    __asm__ volatile (
-        "1: push r22"     "\n\t"
-        "   ldi  r22, 4"  "\n\t"
-        "2: dec  r22"     "\n\t"
-        "   brne 2b"      "\n\t"
-        "   pop  r22"     "\n\t"   
-        "   sbiw %0, 1"   "\n\t"
-        "   brne 1b"
-        : "=w" ( microseconds )  
-        : "0" ( microseconds )
-    );  
-}
-
-inline void delay(uint16_t ms)
-{
-    while (ms--)
-      delayMicroseconds(1000);
-}
-
-uint32_t g_timer = 0;
-
-uint32_t getTicksCount()
-{
-    cli();
-    uint32_t time = g_timer;
-    sei();
-    return time;
-}
-
-void resetTicks() __attribute__ ((deprecated));
-void resetTicks()
-{
-    cli();
-    g_timer = 0;
-    sei();
-}
-
-void init_timer()
-{ 
-    // Setup timer to 1 ms
-    TCCR1B = (1 << WGM12) | (1 << CS11);
-
-    OCR1AH = (1250 >> 8);
-    OCR1AL = (1250 & 0xFF);
-
-    TIMSK1 |=(1<<OCIE1A);
-}
-
-void clean_timer()
-{
-    TCCR1A = 0;
-    TCCR1B = 0;
-}
-
-ISR(TIMER1_COMPA_vect)
-{
-    ++g_timer;
+    detail::g_sub_timer = 0;
+    ++detail::g_timer;
 
     buzzer.update();
 
@@ -448,6 +404,50 @@ ISR(TIMER1_COMPA_vect)
         setMotorPowerID(i, detail::g_speed_cur[i]);
     }
     detail::g_speed_is_setted = false;
+}
+
+
+#endif
+
+#ifndef PI_LIB_TIME
+#define PI_LIB_TIME
+
+// Delays for for the specified nubmer of microseconds.
+inline void delayMicroseconds(uint16_t microseconds)
+{
+    __asm__ volatile (
+        "1: push r22"     "\n\t"
+        "   ldi  r22, 4"  "\n\t"
+        "2: dec  r22"     "\n\t"
+        "   brne 2b"      "\n\t"
+        "   pop  r22"     "\n\t"   
+        "   sbiw %0, 1"   "\n\t"
+        "   brne 1b"
+        : "=w" ( microseconds )  
+        : "0" ( microseconds )
+    );  
+}
+
+inline void delay(uint16_t ms)
+{
+    while (ms--)
+      delayMicroseconds(1000);
+}
+
+uint32_t getTicksCount()
+{
+    cli();
+    uint32_t time = detail::g_timer;
+    sei();
+    return time;
+}
+
+void resetTicks() __attribute__ ((deprecated));
+void resetTicks()
+{
+    cli();
+    detail::g_timer = 0;
+    sei();
 }
 
 class stopwatch
@@ -1458,6 +1458,11 @@ public:
         UCSR0B |= (1<<UDRIE0);
     }
 
+    void write(char ch)
+    {
+        sendCharacter(ch);
+    }
+
     void send(const char * str)
     {
         for (; *str != 0; ++str)
@@ -1608,6 +1613,215 @@ ISR(USART_UDRE_vect)
 
 #endif
 
+#ifndef PI_LIB_FORMAT
+#define PI_LIB_FORMAT
+
+template <typename Stream, typename Unsigned>
+void send_hex(Stream & s, Unsigned v, uint8_t width = 0, char fill = '0')
+{
+    static char const digits[] = "0123456789ABCDEF";
+
+    char buf[32];
+    uint8_t i = 0;
+
+    if (v == 0)
+    {
+        buf[i++] = '0';
+    }
+    else if (v < 0)
+    {
+        buf[i++] = '*';
+    }
+    else
+    {
+        for (; v != 0; v >>= 4)
+        {
+            buf[i++] = digits[v & 0xF];
+        }
+    }
+
+    while (i < width)
+        buf[i++] = fill;
+
+    for (; i > 0; --i)
+        s.write(buf[i - 1]);
+}
+
+template <typename Stream, typename Integer>
+void send_int(Stream & s, Integer v, uint8_t width = 0, char fill = ' ')
+{
+    char buf[32];
+    uint8_t i = 0;
+    bool negative = false;
+
+    if (v == 0)
+    {
+        buf[i++] = '0';
+    }
+    else 
+    {
+        if (v < 0)
+        {
+            negative = true;
+            v = -v;
+        }
+
+        for (; v != 0; v /= 10)
+        {
+            buf[i++] = (v % 10) + '0';
+        }
+    }
+
+    if (negative)
+        buf[i++] = '-';
+
+    while (i < width)
+        buf[i++] = fill;
+
+    for (; i > 0; --i)
+        s.write(buf[i - 1]);
+}
+
+template <typename Stream, typename T>
+void send_bin(Stream & s, T const & t)
+{
+    char const * ptr = reinterpret_cast<char const *>(&t);
+    for (uint8_t i = 0; i < sizeof t; ++i)
+        s.write(ptr[i]);
+}
+
+namespace detail {
+
+template <typename Stream, typename Pattern>
+class format_impl
+{
+public:
+    format_impl(Stream & out, Pattern const & pattern)
+        : m_out(out), m_pattern(pattern)
+    {
+        this->write_literal();
+    }
+
+    format_impl & operator%(const char& ch)
+    {
+        m_out.write(ch);
+        m_pattern.pop();
+        this->write_literal();
+        return *this;
+    }
+
+    format_impl & operator%(char const * str)
+    {
+        while (*str)
+            m_out.write(*str++);
+        m_pattern.pop();
+        this->write_literal();
+        return *this;
+    }
+
+    format_impl & operator%(const bool& v)
+    {
+        m_out.write(v ? '1' : '0');
+        m_pattern.pop();
+        this->write_literal();
+        return *this;
+    }
+
+    template <typename T>
+    format_impl & operator%(T const & t)
+    {
+        char f = m_pattern.top();
+        bool hex =  false;
+        uint8_t width = 0;
+        if(f == 'x')
+        {
+            hex = true;
+            m_pattern.pop();
+            f = m_pattern.top();
+        }
+        if(f >='0' && f <= '9')
+            width = f - '0';
+        if (hex)
+            send_hex(m_out, t, width);
+        else
+            send_int(m_out, t, width);
+        if(!m_pattern.empty())
+            m_pattern.pop();
+        this->write_literal();
+        return *this;
+    }
+
+private:
+    void write_literal()
+    {
+        bool escape = false;
+        for (; !m_pattern.empty(); m_pattern.pop())
+        {
+            char ch = m_pattern.top();
+
+            if (ch == '%')
+            {
+                if (escape)
+                {
+                    m_out.write('%');
+                    m_out.write('%');
+                    escape = false;
+                }
+                else
+                {
+                    escape = true;
+                }
+            }
+            else
+            {
+                if (escape)
+                    break;
+                m_out.write(ch);
+            }
+        }
+    }
+
+    Stream &m_out;
+    Pattern m_pattern;
+};
+
+class string_literal_range
+{
+public:
+    string_literal_range(char const * pattern) :
+        m_pattern(pattern)
+    {
+    }
+
+    bool empty() const
+    {
+        return *m_pattern == 0;
+    }
+
+    char top() const
+    {
+        return *m_pattern;
+    }
+
+    void pop()
+    {
+        ++m_pattern;
+    }
+
+private:
+    char const * m_pattern;
+};
+
+} // namespace detail
+
+template <typename Stream>
+detail::format_impl<Stream, detail::string_literal_range> format(Stream & out, char const * pattern)
+{
+    return detail::format_impl<Stream, detail::string_literal_range>(out, detail::string_literal_range(pattern));
+}
+
+#endif
+
 #ifndef PI_LIB_I2C
 #define PI_LIB_I2C
 
@@ -1679,10 +1893,6 @@ inline void waitForButton(uint8_t buttons)
 
 void init()
 {
-#ifdef PI_LIB_TIME
-    init_timer();
-#endif
-
 #ifdef PI_LIB_BUZZER
     init_buzzer();
 #endif
@@ -1714,10 +1924,6 @@ void init()
 
 void clean()
 {
-#ifdef PI_LIB_TIME
-    clean_timer();
-#endif
-
 #ifdef PI_LIB_BUZZER
     clean_buzzer();
 #endif

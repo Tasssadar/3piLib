@@ -150,6 +150,11 @@ public:
         UCSR0B |= (1<<UDRIE0);
     }
 
+    void write(char ch)
+    {
+        sendCharacter(ch);
+    }
+
     void send(const char * str)
     {
         for (; *str != 0; ++str)

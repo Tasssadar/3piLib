@@ -3,10 +3,6 @@
 
 void init()
 {
-#ifdef PI_LIB_TIME
-    init_timer();
-#endif
-
 #ifdef PI_LIB_BUZZER
     init_buzzer();
 #endif
@@ -38,10 +34,6 @@ void init()
 
 void clean()
 {
-#ifdef PI_LIB_TIME
-    clean_timer();
-#endif
-
 #ifdef PI_LIB_BUZZER
     clean_buzzer();
 #endif
