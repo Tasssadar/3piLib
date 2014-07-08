@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 25
+#define PI_LIB_VERSION 26
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -393,6 +393,7 @@ uint32_t getTicksCount()
     return time;
 }
 
+void resetTicks() __attribute__ ((deprecated));
 void resetTicks()
 {
     cli();
@@ -404,10 +405,10 @@ void init_timer()
 { 
     // Setup timer to 1 ms
     TCCR1B = (1 << WGM12) | (1 << CS11);
-    
+
     OCR1AH = (1250 >> 8);
     OCR1AL = (1250 & 0xFF);
-    
+
     TIMSK1 |=(1<<OCIE1A);
 }
 
@@ -430,17 +431,17 @@ ISR(TIMER1_COMPA_vect)
     {
         if(!detail::g_need_set_speed[i])
             continue;
-       
+
         if(detail::g_speed[i] == detail::g_speed_cur[i])
         {
             detail::g_need_set_speed[i] = false;
             continue;
         }
-       
+
         int16_t val = abs(detail::g_speed[i]-detail::g_speed_cur[i]);
         if(val >= MOTORS_ACCELERATION)
             val = MOTORS_ACCELERATION;
-       
+
         if(detail::g_speed[i] < detail::g_speed_cur[i])
             val *= -1;
         detail::g_speed_cur[i] += val;
@@ -448,6 +449,91 @@ ISR(TIMER1_COMPA_vect)
     }
     detail::g_speed_is_setted = false;
 }
+
+class stopwatch
+{
+public:
+    stopwatch(bool running = true) : m_running(running)
+    {
+        clear();
+    }
+
+    void clear()
+    {
+        if(m_running)
+            m_base = getTicksCount();
+        else
+            m_base = 0;
+    }
+
+    void cancel()
+    {
+        m_running = false;
+        m_base = 0;
+    }
+
+    bool running() const
+    {
+        return m_running;
+    }
+
+    void restart()
+    {
+        m_running = true;
+        m_base = getTicksCount();
+    }
+
+    void start()
+    {
+        if(!m_running)
+        {
+            m_running = true;
+            m_base = getTicksCount() - m_base;
+        }
+    }
+
+    void stop()
+    {
+        if(m_running)
+        {
+            m_running = false;
+            m_base = getTicksCount() - m_base;
+        }
+    }
+
+    uint32_t operator()() const
+    {
+        return get();
+    }
+
+    uint32_t get() const
+    {
+        if(m_running)
+            return getTicksCount() - m_base;
+        else
+            return m_base;
+    }
+
+    void set(uint32_t val)
+    {
+        if(m_running)
+            m_base = getTicksCount() - val;
+        else
+            m_base = val;
+    }
+
+    void decrease(uint32_t val)
+    {
+        if(m_running)
+            m_base += val;
+        else
+            m_base -= val;
+    }
+
+private:
+    volatile bool m_running;
+    volatile uint32_t m_base;
+};
 
 #endif
 
