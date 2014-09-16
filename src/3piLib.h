@@ -2,8 +2,8 @@
 #define JUNIOR_PI_LIB
 
 #include "common.h"
-#include "motors.h"
 #include "buzzer.h"
+#include "motors.h"
 #include "time.h"
 #include "sensors.h"
 #include "display.h"

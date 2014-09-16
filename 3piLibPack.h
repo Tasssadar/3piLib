@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 27
+#define PI_LIB_VERSION 28
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -331,28 +331,27 @@ namespace detail
 
 void setRightMotor(int16_t speed)
 {
+    detail::g_speed[1] = speed;
+
     if(detail::g_soft_speed_set)
-    {
-        detail::g_speed[1] = speed;
         detail::g_need_set_speed[1] = true;
-    }
     else
         detail::setRightMotor(speed);
 }
 
 void setLeftMotor(int16_t speed)
 {
+    detail::g_speed[0] = speed;
+
     if(detail::g_soft_speed_set)
-    {
-        detail::g_speed[0] = speed;
         detail::g_need_set_speed[0] = true;
-    }
     else
         detail::setLeftMotor(speed);
 }
 
 void setMotorPowerID(uint8_t motor, int16_t speed)
 {
+    detail::g_speed[motor] = speed;
     if(motor)
         detail::setRightMotor(speed);
     else
@@ -363,6 +362,21 @@ inline void setMotorPower(int16_t left, int16_t right)
 {
     setLeftMotor(left);
     setRightMotor(right);
+}
+
+int16_t getMotorPowerID(uint8_t motor)
+{
+    return detail::g_speed[motor];
+}
+
+inline int16_t getLeftMotor()
+{
+    return getMotorPowerID(0);
+}
+
+inline int16_t getRightMotor()
+{
+    return getMotorPowerID(1);
 }
 
 inline void setSoftAccel(bool enabled)
