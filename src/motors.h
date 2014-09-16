@@ -120,7 +120,6 @@ void setLeftMotor(int16_t speed)
 
 void setMotorPowerID(uint8_t motor, int16_t speed)
 {
-    detail::g_speed[motor] = speed;
     if(motor)
         detail::setRightMotor(speed);
     else

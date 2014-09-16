@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 28
+#define PI_LIB_VERSION 29
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -351,7 +351,6 @@ void setLeftMotor(int16_t speed)
 
 void setMotorPowerID(uint8_t motor, int16_t speed)
 {
-    detail::g_speed[motor] = speed;
     if(motor)
         detail::setRightMotor(speed);
     else
