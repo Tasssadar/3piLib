@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 29
+#define PI_LIB_VERSION 30
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -1834,7 +1834,6 @@ detail::format_impl<Stream, detail::string_literal_range> format(Stream & out, c
 }
 
 #endif
-
 #ifndef PI_LIB_I2C
 #define PI_LIB_I2C
 
@@ -1972,9 +1971,22 @@ int main()
 {
     init();
     sei();
+
+	if (isPressed(BUTTON_A)) {
+		display.printNumToXY(getBatteryVoltage(), 4,0);		
+		delay(2000);
+	}
+	
     run();
-    cli();
+    
+	cli();
     clean();
+    
+	// for working bootloader after end of program
+    init_rs232();
+    sei();
+	while(true) {}
+
     return 0;
 }
 

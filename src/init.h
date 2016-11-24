@@ -69,9 +69,22 @@ int main()
 {
     init();
     sei();
+
+	if (isPressed(BUTTON_A)) {
+		display.printNumToXY(getBatteryVoltage(), 4,0);		
+		delay(2000);
+	}
+	
     run();
-    cli();
+    
+	cli();
     clean();
+    
+	// for working bootloader after end of program
+    init_rs232();
+    sei();
+	while(true) {}
+
     return 0;
 }
 
