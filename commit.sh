@@ -1,7 +1,7 @@
 #!/bin/sh
 HG_FOLDER="../hg-3piLib"
 GIT_REPO="git://github.com/Tasssadar/3piLib.git"
-HG_REPO="https://technika.junior.cz/hg/3pilib"
+HG_REPO="https://technika.tasemnice.eu/hg/3pilib"
 
 if [ $# -eq 0 ]; then
     echo "Ya have to enter revision number!"
