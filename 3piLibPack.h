@@ -1,4 +1,4 @@
-#define PI_LIB_VERSION 30
+#define PI_LIB_VERSION 31
 
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
@@ -554,11 +554,12 @@ private:
 #define PI_LIB_SENSORS
 
 // LOW_BATTERY = (((low_voltage_in_mv*2-1)/3)*1023-511)/5000;
-// Current setting is 4800mV
-#define LOW_BATTERY 654
+// Current setting is 4200mV
+#define LOW_BATTERY 560
 
 #define PI_GRND_SENSOR_COUNT 5
 #define PI_TOTAL_SENSORS 7
+#define PI_BAT_VOLTAGE_SENSOR 6
 #define PI_VCC 5000
 
 struct ground_sensors_t
@@ -585,13 +586,17 @@ ISR(ADC_vect)
         uint16_t value = (adch << 8) | (adcl);
         g_sensors.value[currentSensor++] = value;
 
-        if(currentSensor == PI_TOTAL_SENSORS)
-        {
-            currentSensor = 0;
-            if(buzzer.isEmergency() && value > LOW_BATTERY)
+		if (currentSensor == PI_BAT_VOLTAGE_SENSOR)
+		{
+		    if(buzzer.isEmergency() && value > LOW_BATTERY)
                 buzzer.emergency(false);
             else if(!buzzer.isEmergency() && value < LOW_BATTERY)
                 buzzer.emergency(true);
+		}
+
+        if(currentSensor == PI_TOTAL_SENSORS)
+        {
+            currentSensor = 0;
         }
 
         ADMUX = (1<<REFS0)|sensorMap[currentSensor];
